@@ -20,6 +20,7 @@ public interface DataStoreVerificationRules<Ste extends State, Evt extends Event
     void submitDeleteCommand(EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor, String id);
     List<EventEnvelope<TestEvent, Tuple0, Tuple0>> readPublishedEvents(String kafkaBootstrapUrl, String topic);
     Integer readProjection();
+    Integer readConsistentProjection();
     void shutdownBroker();
     void restartBroker();
     void shutdownDatabase();
@@ -43,7 +44,8 @@ public interface DataStoreVerificationRules<Ste extends State, Evt extends Event
     void required_eventShouldBeConsumedByProjectionEvenIfBrokerIsDownAtFirst();
     void required_eventShouldNotBeConsumedByProjectionEvenIfDataBaseIsBroken();
 
-
+    void required_eventShouldBeConsumedByConsistentProjectionWhenEverythingIsAlright();
+    void required_eventShouldBeConsumedByConsistentProjectionEvenIfBrokerIsDownAtFirst();
     List<EventEnvelope<Evt, Meta, Context>> readFromDataStore(EventStore<TxCtx, TestEvent, Tuple0, Tuple0> eventStore);
 
     default void cleanup(

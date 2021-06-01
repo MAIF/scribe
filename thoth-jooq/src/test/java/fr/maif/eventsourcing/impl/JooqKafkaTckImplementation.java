@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
 import fr.maif.eventsourcing.Projection;
+import fr.maif.eventsourcing.datastore.TestConsistentProjection;
 import fr.maif.eventsourcing.datastore.TestProjection;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -101,6 +102,7 @@ public class JooqKafkaTckImplementation extends DataStoreVerification<Connection
         postgres.start();
         kafka = new KafkaContainer();
         kafka.start();
+        consistentProjection = new TestConsistentProjection(actorSystem,kafka.getBootstrapServers(),eventFormat,dataSource);
     }
 
 
@@ -236,6 +238,11 @@ public class JooqKafkaTckImplementation extends DataStoreVerification<Connection
     @Override
     public Integer readProjection() {
         return ((TestProjection)this.testProjection).getCount();
+    }
+
+    @Override
+    public Integer readConsistentProjection() {
+        return consistentProjection.getCount();
     }
 
     private static Optional<Long> getEndOffsetIfNotReached(String topic, String kafkaServers, String groupId) {
