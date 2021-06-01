@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
+import fr.maif.eventsourcing.Projection;
 import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 
@@ -21,6 +22,7 @@ import io.vavr.concurrent.Future;
 public class InMemoryDataStoreTest extends DataStoreVerification<Tuple0> {
     public InMemoryEventStore<TestEvent, Tuple0, Tuple0> eventStore;
     public EventProcessor<String, TestState, TestCommand, TestEvent, Tuple0, Tuple0, Tuple0, Tuple0> eventProcessor;
+
 
     @BeforeMethod(alwaysRun = true)
     public void init() {
@@ -46,6 +48,24 @@ public class InMemoryDataStoreTest extends DataStoreVerification<Tuple0> {
         }
     }
 
+    @Override
+    public Integer readProjection() {
+        // Not implemented for in memory
+        return null;
+    }
+
+    @Override
+    public void required_eventShouldBeConsumedByProjectionWhenEverythingIsAlright(){
+        // Not implemented for in memory
+    }
+    @Override
+    public void required_eventShouldBeConsumedByProjectionEvenIfBrokerIsDownAtFirst(){
+        // Not implemented for in memory
+    }
+    @Override
+    public void required_eventShouldNotBeConsumedByProjectionEvenIfDataBaseIsBroken(){
+        // Not implemented for in memory
+    }
     @Override
     public void required_commandSubmissionShouldFailIfDatabaseIsNotAvailable() {
         // Not implemented for in memory

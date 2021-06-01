@@ -4,3 +4,4 @@ target
 .bsp/
 .DS_Store
 .bloop
+*.iml

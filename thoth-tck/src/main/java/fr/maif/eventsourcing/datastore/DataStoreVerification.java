@@ -12,6 +12,7 @@ import io.vavr.Tuple0;
 import io.vavr.control.Either;
 import io.vavr.control.Option;
 
+import io.vavr.control.Try;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -168,11 +169,7 @@ public abstract class DataStoreVerification<TxCtx> implements DataStoreVerificat
         submitValidCommand(eventProcessor, "1");
 
         restartBroker();
-        try {
-            Thread.sleep(10000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        sleep();
         List<EventEnvelope<TestEvent, Tuple0, Tuple0>> envelopes = deduplicateOnId(readPublishedEvents(kafkaBootstrapUrl(), topic));
 
         cleanup(eventProcessor);
@@ -198,6 +195,55 @@ public abstract class DataStoreVerification<TxCtx> implements DataStoreVerificat
             restartDatabase();
         }
     }
+
+
+    @Override
+    @Test
+    public void required_eventShouldBeConsumedByProjectionWhenEverythingIsAlright(){
+        String topic = randomKafkaTopic();
+        EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor = eventProcessor(topic);
+        submitValidCommand(eventProcessor, "1");
+        sleep();
+
+        cleanup(eventProcessor);
+        assertThat(readProjection()).isEqualTo(1);
+    }
+    @Override
+    @Test
+    public void  required_eventShouldBeConsumedByProjectionEvenIfBrokerIsDownAtFirst(){
+        String topic = randomKafkaTopic();
+        EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor = eventProcessor(topic);
+        shutdownBroker();
+        submitValidCommand(eventProcessor, "1");
+        sleep();
+        restartBroker();
+        sleep();
+        cleanup(eventProcessor);
+        assertThat(readProjection()).isEqualTo(1);
+    }
+    @Override
+    @Test
+    public void  required_eventShouldNotBeConsumedByProjectionEvenIfDataBaseIsBroken(){
+        String topic = randomKafkaTopic();
+        EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor = eventProcessor(topic);
+        shutdownDatabase();
+        try {
+            submitValidCommand(eventProcessor, "1");
+        }catch (Throwable t){}
+        sleep();
+        cleanup(eventProcessor);
+        assertThat(readProjection()).isEqualTo(0);
+        restartDatabase();
+    }
+
+    private void sleep() {
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     @Override
     public Either<String, ProcessingSuccess<TestState, TestEvent, Tuple0, Tuple0, Tuple0>> submitValidCommand(

@@ -118,9 +118,7 @@ public class InMemoryEventStore<E extends Event, Meta, Context> implements Event
     @Override
     public Source<EventEnvelope<E, Meta, Context>, NotUsed> loadEventsByQuery(Query query) {
         return Source.from(eventStore)
-                .filter(e -> {
-                    return Option.of(query.entityId).map(id -> id.equals(e.entityId)).getOrElse(true);
-                });
+                .filter(e -> Option.of(query.entityId).map(id -> id.equals(e.entityId)).getOrElse(true));
     }
 
     @Override

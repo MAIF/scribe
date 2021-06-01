@@ -15,6 +15,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
+import fr.maif.eventsourcing.Projection;
+import fr.maif.eventsourcing.datastore.TestProjection;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -58,6 +60,7 @@ public class JooqKafkaTckImplementation extends DataStoreVerification<Connection
     private TestEventFormat eventFormat;
     private PostgreSQLContainer postgres;
     private KafkaContainer kafka;
+    private Projection testProjection;
 
     private final String SCHEMA = "CREATE TABLE IF NOT EXISTS test_journal (\n" +
             "                      id UUID primary key,\n" +
@@ -90,6 +93,7 @@ public class JooqKafkaTckImplementation extends DataStoreVerification<Connection
 
     @BeforeClass(alwaysRun = true)
     public void initClass() {
+
         this.tableNames = new TableNames("test_journal", "test_sequence_num");
         this.eventFormat = new TestEventFormat();
 
@@ -102,6 +106,7 @@ public class JooqKafkaTckImplementation extends DataStoreVerification<Connection
 
     @BeforeMethod(alwaysRun = true)
     public void init() throws SQLException {
+        this.testProjection = new TestProjection();
         this.dataSource = new PGSimpleDataSource();
         dataSource.setUrl(postgres.getJdbcUrl());
         dataSource.setUser(postgres.getUsername());
@@ -128,7 +133,7 @@ public class JooqKafkaTckImplementation extends DataStoreVerification<Connection
                 .withEventHandler(new TestEventHandler())
                 .withDefaultAggregateStore()
                 .withCommandHandler(new TestCommandHandler<>())
-                .withNoProjections()
+                .withProjections(this.testProjection)
                 .build();
 
 
@@ -226,6 +231,11 @@ public class JooqKafkaTckImplementation extends DataStoreVerification<Connection
         }
         consumer.close();
         return envelopes;
+    }
+
+    @Override
+    public Integer readProjection() {
+        return ((TestProjection)this.testProjection).getCount();
     }
 
     private static Optional<Long> getEndOffsetIfNotReached(String topic, String kafkaServers, String groupId) {
