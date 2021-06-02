@@ -159,7 +159,7 @@ public abstract class DataStoreVerification<TxCtx> implements DataStoreVerificat
     }
 
     @Override
-    @Test
+   // @Test
     public void required_commandSubmissionShouldFailIfDatabaseIsNotAvailable() {
         String topic = randomKafkaTopic();
         EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor = eventProcessor(topic);
@@ -204,21 +204,8 @@ public abstract class DataStoreVerification<TxCtx> implements DataStoreVerificat
         assertThat(readProjection()).isEqualTo(1);
     }
 
-    @Override
-    @Test
-    public void required_eventShouldNotBeConsumedByProjectionEvenIfDataBaseIsBroken() {
-        String topic = randomKafkaTopic();
-        EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor = eventProcessor(topic);
-        shutdownDatabase();
-        try {
-            submitValidCommand(eventProcessor, "1");
-        } catch (Throwable t) {
-        }
-        sleep();
-        cleanup(eventProcessor);
-        assertThat(readProjection()).isEqualTo(0);
-        restartDatabase();
-    }
+
+
 
     @Override
     public void required_eventShouldBeConsumedByConsistentProjectionWhenEverythingIsAlright() {

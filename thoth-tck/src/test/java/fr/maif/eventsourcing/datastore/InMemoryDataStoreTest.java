@@ -67,11 +67,6 @@ public class InMemoryDataStoreTest extends DataStoreVerification<Tuple0> {
     }
 
     @Override
-    public void required_eventShouldNotBeConsumedByProjectionEvenIfDataBaseIsBroken() {
-        // Not implemented for in memory
-    }
-
-    @Override
     public void required_commandSubmissionShouldFailIfDatabaseIsNotAvailable() {
         // Not implemented for in memory
     }

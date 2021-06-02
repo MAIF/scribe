@@ -1,0 +1,11 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="Suite1" verbose="10" thread-count="1">
+    <test name="Jooq reactive implementation" >
+        <classes>
+            <class name="fr.maif.eventsourcing.JooqAsyncKafkaTCKImplementation" />
+        </classes>
+    </test>
+    <listeners>
+        <listener class-name="fr.maif.eventsourcing.datastore.DoTestListener" />
+    </listeners>
+</suite>

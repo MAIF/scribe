@@ -42,7 +42,6 @@ public interface DataStoreVerificationRules<Ste extends State, Evt extends Event
 
     void required_eventShouldBeConsumedByProjectionWhenEverythingIsAlright();
     void required_eventShouldBeConsumedByProjectionEvenIfBrokerIsDownAtFirst();
-    void required_eventShouldNotBeConsumedByProjectionEvenIfDataBaseIsBroken();
 
     void required_eventShouldBeConsumedByConsistentProjectionWhenEverythingIsAlright();
     void required_eventShouldBeConsumedByConsistentProjectionEvenIfBrokerIsDownAtFirst();
