@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 
 import fr.maif.eventsourcing.Projection;
 import fr.maif.eventsourcing.datastore.TestConsistentProjection;
-import fr.maif.eventsourcing.datastore.TestProjection;
+import fr.maif.eventsourcing.datastore.TestInstransactionProjection;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -108,7 +108,7 @@ public class JooqKafkaTckImplementation extends DataStoreVerification<Connection
 
     @BeforeMethod(alwaysRun = true)
     public void init() throws SQLException {
-        this.testProjection = new TestProjection();
+        this.testProjection = new TestInstransactionProjection();
         this.dataSource = new PGSimpleDataSource();
         dataSource.setUrl(postgres.getJdbcUrl());
         dataSource.setUser(postgres.getUsername());
@@ -237,7 +237,7 @@ public class JooqKafkaTckImplementation extends DataStoreVerification<Connection
 
     @Override
     public Integer readProjection() {
-        return ((TestProjection)this.testProjection).getCount();
+        return ((TestInstransactionProjection)this.testProjection).getCount();
     }
 
     @Override
