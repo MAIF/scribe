@@ -4,6 +4,9 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -23,11 +26,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 import fr.maif.eventsourcing.EventProcessor;
 import fr.maif.eventsourcing.ProcessingSuccess;
+import fr.maif.eventsourcing.TransactionManager;
 import fr.maif.thoth.sample.commands.BankCommand;
 import fr.maif.thoth.sample.events.BankEvent;
 import fr.maif.thoth.sample.projections.eventualyconsistent.MeanWithdrawProjection;
 import fr.maif.thoth.sample.state.Account;
 import io.vavr.Tuple0;
+import io.vavr.collection.List;
+import io.vavr.collection.Seq;
+import io.vavr.concurrent.Future;
 import io.vavr.control.Either;
 
 @RestController
@@ -76,6 +83,54 @@ public class BankController {
                 .toCompletableFuture();
     }
 
+
+    @PostMapping("/_action/transfer")
+    public ResponseEntity<TransferResultDTO> transfer(@RequestBody TransferDTO transferDTO) {
+        if(Objects.isNull(transferDTO.from)) {
+            return ResponseEntity.badRequest().body(TransferResultDTO.error("from field must be set"));
+        } else if(Objects.isNull(transferDTO.to)) {
+            return ResponseEntity.badRequest().body(TransferResultDTO.error("to field must be set"));
+        } else if(Objects.isNull(transferDTO.amount)) {
+            return ResponseEntity.badRequest().body(TransferResultDTO.error("amount field must be set"));
+        }
+
+        try(Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            var withdrawResult = eventProcessor
+                    .batchProcessCommand(
+                            connection,
+                            List.of(new BankCommand.Withdraw(transferDTO.from, transferDTO.amount))
+                    );
+            var depositResult = eventProcessor
+                    .batchProcessCommand(
+                            connection,
+                            List.of(new BankCommand.Deposit(transferDTO.to, transferDTO.amount))
+                    );
+
+            return withdrawResult.zip(depositResult).map(tuple ->
+                tuple._1.and(tuple._2, (leither1, leither2) -> {
+                    var mergedResult = Either
+                            .sequence(List.of(leither1.head(), leither2.head()));
+                    try {
+                        if(mergedResult.isLeft()) {
+                            connection.rollback();
+                        } else {
+                            connection.commit();
+                        }
+                    } catch (SQLException exception) {
+                        return new ResponseEntity<>(TransferResultDTO.error("Failed to commit / rollback"), HttpStatus.INTERNAL_SERVER_ERROR);
+                    }
+                    return transferResultToDTO(mergedResult, transferDTO.from, transferDTO.to);
+                }
+
+            )).flatMap(TransactionManager.InTransactionResult::postTransaction)
+            .toCompletableFuture().join();
+
+        } catch (SQLException throwables) {
+            return new ResponseEntity<>(TransferResultDTO.error("Failed to open connection"), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @DeleteMapping("/{id}")
     public CompletableFuture<ResponseEntity<?>> closeAccount(@PathVariable("id") String id) {
         return eventProcessor.processCommand(new BankCommand.CloseAccount(id))
@@ -119,6 +174,26 @@ public class BankController {
             result.error = "No withdraw data available";
             return result;
         });
+    }
+
+    private static ResponseEntity<TransferResultDTO> transferResultToDTO(Either<
+            Seq<String>,
+            Seq<ProcessingSuccess<Account, BankEvent, Tuple0, Tuple0, Tuple0>>> maybeSuccess,
+            String from, String to) {
+        return maybeSuccess.fold(
+                errors -> ResponseEntity.badRequest().body(TransferResultDTO.error(String.join(",", errors))),
+                success -> ResponseEntity.ok(success.foldLeft(new TransferResultDTO(), (result, processingSuccess) -> {
+                        final Account account = processingSuccess.currentState.get();
+                        final AccountDTO dto = AccountDTO.fromAccount(account);
+                        if(dto.id.equals(from)) {
+                            result.from = AccountDTO.fromAccount(account);
+                        } else if(dto.id.equals(to)) {
+                            result.to = AccountDTO.fromAccount(account);
+                        }
+
+                        return result;
+                    }))
+        );
     }
 
     private static ResponseEntity<AccountDTO> resultToDTO(Either<
