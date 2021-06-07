@@ -41,6 +41,7 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 
@@ -148,8 +149,6 @@ public class JooqAsyncKafkaTCKImplementation extends DataStoreVerification<Conne
 
         kafka = new KafkaContainer(DEFAULT_KAFKA_IMAGE_NAME.withTag(DEFAULT_KAFKA_TAG));
         kafka.start();
-        consistentProjection = new TestConsistentProjection(actorSystem, kafka.getBootstrapServers(), eventFormat, dataSource);
-        this.pgAsyncPool = pgAsyncPool(postgres);
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -165,9 +164,8 @@ public class JooqAsyncKafkaTCKImplementation extends DataStoreVerification<Conne
         dataSource.getConnection().prepareStatement(SCHEMA).execute();
         dataSource.getConnection().prepareStatement(INIT_TABLE_QUERY).execute();
 
-
-
-
+        this.pgAsyncPool = pgAsyncPool(postgres);
+        consistentProjection = new TestConsistentProjection(actorSystem, kafka.getBootstrapServers(), eventFormat, dataSource);
     }
 
     private PgAsyncPool pgAsyncPool(PostgreSQLContainer server) {
@@ -176,12 +174,14 @@ public class JooqAsyncKafkaTCKImplementation extends DataStoreVerification<Conne
         jooqConfig.setSQLDialect(SQLDialect.POSTGRES);
 
         final PgConnectOptions options = new PgConnectOptions()
+                .setConnectTimeout(10)
                 .setPort(server.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT))
                 .setHost(server.getContainerIpAddress())
                 .setDatabase(server.getDatabaseName())
                 .setUser(server.getUsername())
                 .setPassword(server.getPassword());
-        PoolOptions poolOptions = new PoolOptions().setMaxSize(50);
+        PoolOptions poolOptions = new PoolOptions()
+                .setMaxSize(50);
         this.pgPool = PgPool.pool(vertx, options, poolOptions);
 
         return new ReactivePgAsyncPool(pgPool, jooqConfig);

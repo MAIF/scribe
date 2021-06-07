@@ -1,5 +1,7 @@
 package fr.maif.eventsourcing.datastore;
 
+import java.util.List;
+
 import fr.maif.eventsourcing.Event;
 import fr.maif.eventsourcing.EventEnvelope;
 import fr.maif.eventsourcing.EventProcessor;
@@ -9,8 +11,6 @@ import fr.maif.eventsourcing.State;
 import io.vavr.Tuple0;
 import io.vavr.control.Either;
 import io.vavr.control.Option;
-
-import java.util.List;
 
 public interface DataStoreVerificationRules<Ste extends State, Evt extends Event, Meta, Context, TxCtx> {
     Either<String, ProcessingSuccess<TestState, TestEvent, Tuple0, Tuple0, Tuple0>> submitValidCommand(EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor, String id);
