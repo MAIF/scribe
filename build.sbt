@@ -85,7 +85,7 @@ lazy val `thoth-kafka-goodies` = project
   )
 
 lazy val `thoth-jooq-async` = project
-  .dependsOn(`thoth-core`)
+  .dependsOn(`thoth-core`, `thoth-tck`)
   .settings(
     sonatypeRepository := "https://s01.oss.sonatype.org/service/local",
     sonatypeCredentialHost := "s01.oss.sonatype.org",

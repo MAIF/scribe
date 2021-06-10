@@ -6,42 +6,24 @@ import fr.maif.eventsourcing.EventEnvelope;
 import fr.maif.eventsourcing.EventProcessor;
 import fr.maif.eventsourcing.EventStore;
 import fr.maif.eventsourcing.ProcessingSuccess;
-import fr.maif.eventsourcing.format.JacksonSimpleFormat;
-import fr.maif.json.EventEnvelopeJson;
 import io.vavr.Tuple0;
 import io.vavr.control.Either;
 import io.vavr.control.Option;
-
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
-public abstract class DataStoreVerification<TxCtx> implements DataStoreVerificationRules<TestState, TestEvent, Tuple0, Tuple0, TxCtx>{
+public abstract class DataStoreVerification<TxCtx> implements DataStoreVerificationRules<TestState, TestEvent, Tuple0, Tuple0, TxCtx> {
     public ActorSystem actorSystem = ActorSystem.create();
+    protected TestConsistentProjection consistentProjection;
+
     public abstract EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor(String topic);
+
     public abstract String kafkaBootstrapUrl();
 
     @Override
@@ -168,11 +150,7 @@ public abstract class DataStoreVerification<TxCtx> implements DataStoreVerificat
         submitValidCommand(eventProcessor, "1");
 
         restartBroker();
-        try {
-            Thread.sleep(10000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        sleep();
         List<EventEnvelope<TestEvent, Tuple0, Tuple0>> envelopes = deduplicateOnId(readPublishedEvents(kafkaBootstrapUrl(), topic));
 
         cleanup(eventProcessor);
@@ -192,12 +170,78 @@ public abstract class DataStoreVerification<TxCtx> implements DataStoreVerificat
             cleanup(eventProcessor);
 
             assertThat(result.isLeft()).isTrue();
-        } catch(Throwable ex) {
+        } catch (Throwable ex) {
             // implementation should either return an embedded error in either, either throw an exception
-        }finally {
+        } finally {
             restartDatabase();
         }
     }
+
+
+    @Override
+    @Test
+    public void required_eventShouldBeConsumedByProjectionWhenEverythingIsAlright() {
+        String topic = randomKafkaTopic();
+        EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor = eventProcessor(topic);
+        submitValidCommand(eventProcessor, "1");
+        sleep();
+
+        cleanup(eventProcessor);
+        assertThat(readProjection()).isEqualTo(1);
+    }
+
+    @Override
+    @Test
+    public void required_eventShouldBeConsumedByProjectionEvenIfBrokerIsDownAtFirst() {
+        String topic = randomKafkaTopic();
+        EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor = eventProcessor(topic);
+        shutdownBroker();
+        submitValidCommand(eventProcessor, "1");
+        sleep();
+        restartBroker();
+        sleep();
+        cleanup(eventProcessor);
+        assertThat(readProjection()).isEqualTo(1);
+    }
+
+
+
+
+    @Override
+    public void required_eventShouldBeConsumedByConsistentProjectionWhenEverythingIsAlright() {
+
+        String topic = randomKafkaTopic();
+        consistentProjection.init(topic);
+        EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor = eventProcessor(topic);
+        submitValidCommand(eventProcessor, "1");
+        sleep();
+
+        cleanup(eventProcessor);
+        assertThat(readConsistentProjection()).isEqualTo(1);
+    }
+
+    @Override
+    public void required_eventShouldBeConsumedByConsistentProjectionEvenIfBrokerIsDownAtFirst() {
+        String topic = randomKafkaTopic();
+        consistentProjection.init(topic);
+        EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor = eventProcessor(topic);
+        shutdownBroker();
+        submitValidCommand(eventProcessor, "1");
+        sleep();
+        restartBroker();
+        sleep();
+        cleanup(eventProcessor);
+        assertThat(readConsistentProjection()).isEqualTo(1);
+    }
+
+    private void sleep() {
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     @Override
     public Either<String, ProcessingSuccess<TestState, TestEvent, Tuple0, Tuple0, Tuple0>> submitValidCommand(
