@@ -159,7 +159,7 @@ public abstract class DataStoreVerification<TxCtx> implements DataStoreVerificat
     }
 
     @Override
-   // @Test
+    @Test
     public void required_commandSubmissionShouldFailIfDatabaseIsNotAvailable() {
         String topic = randomKafkaTopic();
         EventProcessor<String, TestState, TestCommand, TestEvent, TxCtx, Tuple0, Tuple0, Tuple0> eventProcessor = eventProcessor(topic);
