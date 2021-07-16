@@ -17,7 +17,11 @@ jobs:
         run: sbt publishLocal 
       - name: Run test
         id: test
-        run: sbt "project thoth-core" test && sbt "project thoth-jooq" test && sbt "project thoth-jooq-async" test && sbt "project thoth-kafka-goodies" test && sbt "project thoth-tck" test && sbt "project sample" test
+        run: sbt "project thoth-core" test && sbt "project thoth-jooq" test && sbt "project thoth-jooq-async" test && sbt "project thoth-kafka-goodies" test && sbt "project thoth-tck" test
+      - name: Stop docker
+        run: docker-compose -f docker-compose.test.yml down
+      - name: Run sample application test
+        run: sbt "project sample" test
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v1
         if: always()
